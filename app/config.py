@@ -15,19 +15,8 @@ class Settings(BaseSettings):
     # Database
     ENVIRONMENT: str = "development"
     DATABASE_URL: str = os.getenv("DATABASE_URL")
-
-    # Email
-    MAIL_USERNAME: str = os.getenv("MAIL_USERNAME")
-    MAIL_PASSWORD: str = os.getenv("MAIL_PASSWORD")
-    MAIL_FROM: str = os.getenv("MAIL_FROM")
-    MAIL_PORT: int = int(os.getenv("MAIL_PORT", 587))
-    MAIL_SERVER: str = os.getenv("MAIL_SERVER", "smtp.gmail.com")
-    MAIL_FROM_NAME: str = os.getenv("MAIL_FROM_NAME")
-
-    MAIL_STARTTLS: bool = (os.getenv("MAIL_STARTTLS"),)
-    MAIL_SSL_TLS: bool = (os.getenv("MAIL_SSL_TLS"),)
-    USE_CREDENTIALS: bool = (os.getenv("USE_CREDENTIALS"),)
-    VALIDATE_CERTS: bool = os.getenv("VALIDATE_CERTS")
+    USE_CREDENTIALS: bool = os.getenv("USE_CREDENTIALS", "True").lower() == "true"
+    VALIDATE_CERTS: bool = os.getenv("VALIDATE_CERTS", "False").lower() == "true"
 
     @property
     def DATABASE_URL(self) -> str:
@@ -43,9 +32,6 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "Mc5aGOo3kRXK1jHCfG5SWDRwR5cfEnnP"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 120
-
-    # CORS
-    ALLOWED_HOSTS: List[str] = ["*"]
 
     # CORS
     BACKEND_CORS_ORIGINS: list[str] = [
