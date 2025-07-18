@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 
 description = """
-Backend Service is a modern, secure digital banking platform for managing users, accounts, and transactions.
+DevOps CI/CD Service is a modern, secure user management platform with comprehensive authentication and authorization.
 
 ### Key Features
 
@@ -16,16 +16,16 @@ Backend Service is a modern, secure digital banking platform for managing users,
   - Register, verify, and authenticate users
   - Role-based access (Customer, Admin)
   - Profile management and password reset via email OTP
-
+  - JWT-based authentication with secure token handling
 
 ---
 
 **Typical Workflow:**
-1. User registers and verifies email via OTP.
-2. User creates one or more bank accounts.
-3. User performs deposits, withdrawals, and transfers.
-4. All actions are logged, and notifications are sent via email.
-5. Admins can monitor, audit, and manage all users and accounts.
+1. User registers with email and password
+2. User receives verification email with OTP
+3. User verifies account and can login
+4. User can view profile and manage account settings
+5. Admins can monitor and manage all users
 
 ---
 
@@ -83,7 +83,7 @@ async def landing_page():
     <head>
         <meta charset=\"UTF-8\">
         <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
-        <title>NyLabank API Landing Page</title>
+        <title>DevOps Service Landing Page</title>
         <style>
             body {
                 background: #181c20;
@@ -146,14 +146,14 @@ async def landing_page():
     </head>
     <body>
         <div class=\"container\">
-            <h1>NyLabank API</h1>
-            <p>Welcome to the NyLabank API. Choose a documentation below:</p>
+            <h1>DevOps Service</h1>
+            <p>Welcome to the DevOps Service. Choose a documentation below:</p>
             <div class=\"links\">
                 <a href=\"/docs\">Swagger UI</a>
                 <a href=\"/redoc\">Redoc</a>
                 <a href=\"/scalar\">Scalar Docs</a>
             </div>
-            <div class=\"footer\">&copy; 2024 NyLabank. All rights reserved.</div>
+            <div class=\"footer\">&copy; 2025 TiaSpaces. All rights reserved.</div>
         </div>
     </body>
     </html>
