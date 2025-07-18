@@ -208,3 +208,4 @@ __marimo__/
 
 # Others
 k8s_deploy/base/configmap.yaml
+k8s_deploy/base/cert.yaml
