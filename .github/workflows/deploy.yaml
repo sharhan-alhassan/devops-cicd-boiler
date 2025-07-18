@@ -75,7 +75,7 @@ jobs:
         with:
           method: kubeconfig
           kubeconfig: ${{ secrets.K8S_CLUSTER_KUBECONFIG_PROD }}
-          context: tamale-tiaspaces-prod-eus-aks
+          context: ${{ secrets.K8S_CONTEXT_PROD }}
 
       - name: Install kubectl
         id: install-kubectl
