@@ -1,0 +1,23 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  labels:
+    app: devops-service
+  name: devops-service
+spec:
+  ingressClassName: kong
+  rules:
+    - host: site.com # change this
+      http:
+        paths:
+          - backend:
+              service:
+                name: devops-service
+                port:
+                  number: 80
+            path: /
+            pathType: Prefix
+  tls:
+    - hosts:
+        - site.com # change this
+      secretName: tls-secret # change this

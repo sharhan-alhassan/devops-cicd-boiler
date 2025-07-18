@@ -1,0 +1,11 @@
+- op: replace
+  path: /spec/rules/0/host
+  value: devops.tamale.forward.tiaspaces.com 
+
+- op: replace
+  path: /spec/tls/0/hosts/0
+  value: devops.tamale.forward.tiaspaces.com 
+  
+- op: replace
+  path: /spec/tls/0/secretName
+  value: tamale.forward.tls.wildcard.tiaspaces.com 

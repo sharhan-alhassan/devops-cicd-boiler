@@ -1,0 +1,30 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: tiaspaces
+
+resources:
+  - namespace.yaml
+  - hpa.yaml
+  - ../../base
+
+patches:
+  - path: patches/ingress-patch.yaml
+    target:
+      group: networking.k8s.io
+      kind: Ingress
+      name: devops-service
+      version: v1
+  - path: patches/deployment.yaml
+    target:
+      group: apps
+      kind: Deployment
+      name: devops-service
+      version: v1
+  - path: patches/svc-patch.yaml
+    target:
+      kind: Service
+      name: devops-service
+      version: v1
+
+images:
+  - name: devops-service

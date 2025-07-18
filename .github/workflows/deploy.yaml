@@ -1,0 +1,107 @@
+name: Deploy to Azure AKS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    env:
+      IMAGE_NAME_PROD: devops-service-prod
+      MANIFESTS_DIRECTORY_PROD: ./k8s_deploy/overlays/prod
+      IMAGE_TAG: 0.0.1
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+
+      - name: Automatic Tagging of Releases
+        uses: rymndhng/release-on-push-action@v0.25.0
+        id: tag-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          bump_version_scheme: minor
+          release_body: "Official release at ${{ steps.tag-release.outputs.tag_name }}"
+
+      - name: Print Semver Version
+        run: |
+          echo ${{ steps.tag-release.outputs.tag_name }}
+
+      - name: Get Current Date
+        id: current-date
+        run: |
+          time=$(date +'%T')
+          echo "::set-output name=date::$(date +'%m-%d-%Y')-${time//:/-}"
+
+      # - name: Get Github Secrets
+      #   env:
+      #     AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
+      #     AZURE_CLIENT_ID_PROD: ${{ secrets.AZURE_CLIENT_ID_PROD }}
+      #     AZURE_CLIENT_SECRET_PROD: ${{ secrets.AZURE_CLIENT_SECRET_PROD }}
+      #   run: |
+      #     echo $AZURE_CREDENTIALS >> azure.txt
+      #     echo $AZURE_CLIENT_ID_PROD >> AZURE_CLIENT_ID_PROD.txt
+      #     echo $AZURE_CLIENT_SECRET_PROD >> AZURE_CLIENT_SECRET_PROD.txt
+
+      # - name: Run tmate
+      #   uses: mxschmitt/action-tmate@v2
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Build and push Production Docker Image
+        id: build-prod-image
+        if: ${{ github.ref == 'refs/heads/main' }}
+        env:
+          IMAGE_NAME: ${{ env.IMAGE_NAME_PROD }}
+          IMAGE_TAG: ${{ env.IMAGE_TAG }}
+          TIMESTAMP_TAG: ${{ steps.current-date.outputs.date }}
+          ACR_SERVER_NAME: ${{ secrets.ACR_SERVER_PROD }}
+        run: |
+          az login --service-principal -u ${{ secrets.AZURE_CLIENT_ID_PROD }} -p ${{ secrets.AZURE_CLIENT_SECRET_PROD }} --tenant ${{ secrets.AZURE_TENANT_ID }}
+          az acr login --name ${{ env.ACR_SERVER_NAME }}
+          docker build -f Dockerfile \
+          -t $ACR_SERVER_NAME/$IMAGE_NAME:$TIMESTAMP_TAG .
+          docker push $ACR_SERVER_NAME/$IMAGE_NAME:$TIMESTAMP_TAG
+          echo "::set-output name=image::$ACR_SERVER_NAME/$IMAGE_NAME:$TIMESTAMP_TAG"
+
+      - name: Set Production kubeconfig context
+        uses: azure/k8s-set-context@v1
+        id: setup-prod-kubeconfig
+        if: ${{ github.ref == 'refs/heads/main' }}
+        with:
+          method: kubeconfig
+          kubeconfig: ${{ secrets.K8S_CLUSTER_KUBECONFIG_PROD }}
+          context: tamale-tiaspaces-prod-eus-aks
+
+      - name: Install kubectl
+        id: install-kubectl
+        run: |
+          curl -LO https://dl.k8s.io/release/v1.23.6/bin/linux/amd64/kubectl
+          chmod +x kubectl
+          mkdir -p ~/.local/bin
+          mv ./kubectl ~/.local/bin/kubectl
+          kubectl version --short
+
+      - name: Deploy Production api
+        id: deploy-k8s-prod-yaml
+        if: ${{ github.ref == 'refs/heads/main' }}
+        env:
+          IMAGE_NAME: ${{ steps.build-prod-image.outputs.image }}
+          NAMESPACE: tiaspaces
+          DESTINATION: prod
+        run: |
+          curl -s -o kustomize --location https://github.com/kubernetes-sigs/kustomize/releases/download/v5.4.2/kustomize_5.4.2_linux_amd64
+          chmod u+x ./kustomize
+          chmod +x deploy.sh
+          ./deploy.sh $DESTINATION $IMAGE_NAME $NAMESPACE

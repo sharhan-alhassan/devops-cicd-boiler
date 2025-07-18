@@ -1,0 +1,54 @@
+name: rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version of Image (eg; v1.0.1)'
+        required: true
+
+jobs:
+  rollout-build:
+    runs-on: ubuntu-latest
+    
+    env:
+      AWS_REGION: us-west-1
+      EKS_CLUSTER_NAME: tamale-tiaspaces-prod-eus-aks
+      ECR_REPOSITORY_NAME: devops-service-prod
+      K8S_PROD_YAML_DIR: ./k8s_deploy/overlays/prod
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    - name: Print Image Version
+      run: |
+        echo "Image Version: ${{ inputs.version }}"
+
+    - name: Configure AWS Credentials (OIDC)
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        role-to-assume: arn:aws:iam::170673730974:role/github-actions-deploy-role
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+
+    - name: Setup kubeconfig
+      id: setup-kubeconfig
+      run: |
+        aws eks --region $AWS_REGION update-kubeconfig --name $EKS_CLUSTER_NAME
+
+    - name: Redeploy Prod k8s yaml
+      id: deploy-k8s-prod-yaml
+      if: ${{ github.ref == 'refs/heads/main' }}
+      env:
+        IMAGE_NAME: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_NAME}}:${{ inputs.version }}
+        NAMESPACE: maoney-prod
+        DESTINATION: prod
+      run: |
+        curl -s -o kustomize --location https://github.com/kubernetes-sigs/kustomize/releases/download/v5.4.2/kustomize_5.4.2_linux_amd64
+        chmod u+x ./kustomize
+        chmod +x deploy.sh
+        ./deploy.sh $DESTINATION $IMAGE_NAME $NAMESPACE

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: devops-service
+  labels:
+    app: devops-service
+    environment: production
+data:
+  ENVIRONMENT: "production"
+  DATABASE_URL: "postgresql+asyncpg://devops-wa:npg_ulHEDy3j5gZs@ep-green-king-a55nom37-pooler.us-east-2.aws.neon.tech/devops-wa"
+  VALIDATE_CERTS: "False"
+  USE_CREDENTIALS: "True"
+  ALLOWED_HOSTS: "localhost,127.0.0.1,devops.tamale.forward.tiaspaces.com"
+  CORS_ORIGINS: "localhost,127.0.0.1,*,devops.tamale.forward.tiaspaces.com"
+  SHOW_SWAGGER: "True"
