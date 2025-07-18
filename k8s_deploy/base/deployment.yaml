@@ -20,5 +20,5 @@ spec:
           ports:
             - containerPort: 8000
       restartPolicy: Always
-      # imagePullSecrets:
-      #   - name: regcred
+      imagePullSecrets:
+        - name: regcred
