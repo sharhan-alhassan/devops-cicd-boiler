@@ -1,0 +1,144 @@
+name: automation-tests
+
+on:
+  pull_request:
+    branches: [ none ]
+
+jobs:
+  # PR labels check
+  check-branch-and-labels:
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+    steps:
+      - name: Check branch and labels
+        id: check
+        run: |
+          if [[ "${{ github.base_ref }}" == "main" ]]; then
+            # For main branch PRs, check if pr-labels-check workflow passed
+            CHECK_RESULT=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              "https://api.github.com/repos/${{ github.repository }}/actions/workflows/pr-labels-check.yaml/runs?event=pull_request&branch=${{ github.head_ref }}" \
+              | jq -r '.workflow_runs[0].conclusion')
+            
+            if [[ "$CHECK_RESULT" == "success" ]]; then
+              echo "::set-output name=should_run::true"
+            else
+              echo "::set-output name=should_run::false"
+            fi
+          else
+            # For non-main branches, always run
+            echo "::set-output name=should_run::true"
+          fi
+
+  # Integration tests
+  integration-tests:
+    needs: check-branch-and-labels
+    if: needs.check-branch-and-labels.outputs.should_run == 'true'
+    
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.head_ref }}-${{ github.base_ref }}
+      cancel-in-progress: true
+
+    env:
+      AWS_REGION: us-west-1
+      IMAGE_NAME: chatservice
+      IMAGE_TAG: 0.1
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Create cluster
+        uses: helm/kind-action@v1
+
+      - name: Wait for cluster to finish creating
+        uses: jakejarvis/wait-action@v0.1.1
+        with:
+          time: '15s'
+
+      - name: Verify kind installation
+        run: |
+          kind version
+          kind get nodes
+          kubectl get pods --all-namespaces
+
+      - name: Build and Tag Dev Image
+        id: build-dev-image
+        if: ${{ github.base_ref == 'dev' }}
+        run: |
+          docker build -f Dockerfile -t $IMAGE_NAME:$IMAGE_TAG .
+          echo "::set-output name=image::$IMAGE_NAME:$IMAGE_TAG"
+
+      - name: Build and Tag QA Image
+        id: build-qa-image
+        if: ${{ github.base_ref == 'staging' }}
+        run: |
+          docker build -f Dockerfile \
+          -t $IMAGE_NAME:$IMAGE_TAG .
+          echo "::set-output name=image::$IMAGE_NAME:$IMAGE_TAG"
+
+      - name: Build and Tag Prod Image
+        id: build-prod-image
+        if: ${{ github.base_ref == 'main' }}
+        run: |
+          # Build a docker container and Tag
+          docker build -f Dockerfile \
+          -t $IMAGE_NAME:$IMAGE_TAG .
+          echo "::set-output name=image::$IMAGE_NAME:$IMAGE_TAG"
+
+      - name: Push Dev Image to Kind cluster
+        id: kind-cluster-image-push-dev
+        if: ${{ github.base_ref == 'dev' }}
+        env:
+          KIND_IMAGE: ${{ steps.build-dev-image.outputs.image }}
+          CLUSTER_NAME: chart-testing
+          CLUSTER_CONTROLLER: chart-testing-control-plane
+        run: |
+          kind load docker-image $KIND_IMAGE --name $CLUSTER_NAME
+          docker exec $CLUSTER_CONTROLLER crictl images
+
+      - name: Push QA Image to Kind cluster
+        id: kind-cluster-image-push-qa
+        if: ${{ github.base_ref == 'staging' }}
+        env:
+          KIND_IMAGE: ${{ steps.build-qa-image.outputs.image }}
+          CLUSTER_NAME: chart-testing
+          CLUSTER_CONTROLLER: chart-testing-control-plane
+        run: |
+          kind load docker-image $KIND_IMAGE --name $CLUSTER_NAME
+          docker exec $CLUSTER_CONTROLLER crictl images
+
+      - name: Push Prod Image to Kind cluster
+        id: kind-cluster-image-push-prod
+        if: ${{ github.base_ref == 'main' }}
+        env:
+          KIND_IMAGE: ${{ steps.build-prod-image.outputs.image }}
+          CLUSTER_NAME: chart-testing
+          CLUSTER_CONTROLLER: chart-testing-control-plane
+        run: |
+          kind load docker-image $KIND_IMAGE --name $CLUSTER_NAME
+          docker exec $CLUSTER_CONTROLLER crictl images
+
+      - name: Deploy k8s
+        id: deploy-k8s
+        env:
+          K8S_DIR: ./k8s_deploy/integration-test
+        run: |
+          cd $K8S_DIR
+          # Deploy service
+          envsubst '${IMAGE_NAME} ${IMAGE_TAG}' < deploy.yml | kubectl apply -f -
+
+      - name: Wait for Pods to finish setting up
+        uses: jakejarvis/wait-action@v0.1.1
+        with:
+          time: '15s'
+
+      - name: Verify Deployments
+        id: service-healthcheck
+        run: |
+          # kubectl logs po/integration-test
+          POD=$(kubectl get pods -l app=integration-test -o jsonpath="{.items[0].metadata.name}")
+          echo "Streaming logs from $POD for 10 seconds..."
+          timeout 10s kubectl logs -f pod/$POD || echo "Log stream ended or timed out."
+

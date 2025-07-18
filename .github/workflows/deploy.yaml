@@ -3,7 +3,7 @@ name: Deploy to Azure AKS
 on:
   push:
     branches:
-      - main
+      - none
       
 permissions:
   id-token: write
@@ -15,10 +15,8 @@ jobs:
     env:
       IMAGE_NAME_PROD: devops-service-prod
       MANIFESTS_DIRECTORY_PROD: ./k8s_deploy/overlays/prod
-      MANIFESTS_DIRECTORY_DEV: ./k8s_deploy/overlays/dev
-      MANIFESTS_DIRECTORY_STAGE: ./k8s_deploy/overlays/stage
       IMAGE_TAG: 0.0.1
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
