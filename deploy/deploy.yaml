@@ -18,39 +18,39 @@ spec:
         app: ayadata-app
     spec:
       tolerations:
-      - effect: NoSchedule
-        key: kubernetes.azure.com/scalesetpriority
-        operator: Equal
-        value: spot
+        - effect: NoSchedule
+          key: kubernetes.azure.com/scalesetpriority
+          operator: Equal
+          value: spot
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
-            - matchExpressions:
-              - key: kubernetes.azure.com/scalesetpriority
-                operator: In
-                values:
-                - spot
+              - matchExpressions:
+                  - key: kubernetes.azure.com/scalesetpriority
+                    operator: In
+                    values:
+                      - spot
       containers:
-      - name: ayadata-app
-        image: sharhanalhassan/ayadata-app:0.0.5
-        envFrom:
+        - name: ayadata-app
+          image: sharhanalhassan/ayadata-app:0.0.5
+          envFrom:
             - configMapRef:
                 name: general-config
-        command: ["/bin/sh", "-c"]
-        args:
+          command: ["/bin/sh", "-c"]
+          args:
             - python manage.py collectstatic --noinput &&
-              python manage.py migrate && 
+              python manage.py migrate &&
               gunicorn --config gunicorn_config.py core.wsgi:application
-        ports:
-        - containerPort: 8000
+          ports:
+            - containerPort: 8000
       restartPolicy: Always
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: ayadata-app
-  namespace: tiaspaces 
+  namespace: tiaspaces
 spec:
   ports:
     - port: 80
@@ -70,18 +70,19 @@ metadata:
 spec:
   ingressClassName: kong
   rules:
-  - host: ayadata.tamale.forward.tiaspaces.com            
-    http:
-      paths:
-      - backend:
-          service:
-            name: ayadata-app
-            port:
-              number: 80
-        path: /
-        pathType: Prefix
+    - host: ayadata.tamale.forward.tiaspaces.com
+      http:
+        paths:
+          - backend:
+              service:
+                name: ayadata-app
+                port:
+                  number: 80
+            path: /
+            pathType: Prefix
   tls:
-  - hosts:
-    - ayadata.tamale.forward.tiaspaces.com                      
-    secretName: tamale.forward.tls.wildcard.tiaspaces.com        
+    - hosts:
+        - ayadata.tamale.forward.tiaspaces.com
+      secretName: tamale.forward.tls.wildcard.tiaspaces.com
 ---
+

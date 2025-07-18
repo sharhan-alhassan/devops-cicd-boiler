@@ -14,11 +14,11 @@ spec:
       containers:
         - name: devops-service
           image: devops-service
+          envFrom:
+            - configMapRef:
+                name: devops-service
           ports:
             - containerPort: 8000
       restartPolicy: Always
-      envFrom:
-        - configMapRef:
-            name: devops-service
       # imagePullSecrets:
       #   - name: regcred
